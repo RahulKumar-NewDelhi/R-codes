@@ -1,0 +1,140 @@
+---
+title: "<center>Covid-19 Summary Visualisation Report<center>"
+author: "<center>rahul<center>"
+date: "<center>`r Sys.Date()`<center>"
+output:
+  prettydoc::html_pretty:
+    toc: true
+    theme: cayman
+    
+---
+
+```{r, import_packages, echo = FALSE, warning = FALSE, comment = NA, message = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(DT)
+library(dplyr)
+library(plotly)
+```
+
+```{r, import_data, echo = FALSE, warning = FALSE, comment = NA, message = FALSE}
+covid_data <- read.delim("/home/rahul/Downloads/country_wise_latest.xls", sep = ",", header = TRUE)
+daywise_covid_data <- read.delim("/home/rahul/Downloads/day_wise.xls", sep = ",", header = TRUE)
+
+```
+
+
+```{r, top_ten_countries_on_the_basis_of_confirmed_cases, echo = FALSE, warning = FALSE, comment = NA, message = FALSE}
+top_ten_countries_with_covid_cases <- covid_data[order(covid_data$Confirmed, decreasing = TRUE),]
+top_ten_countries_with_covid_cases <- dplyr::select(top_ten_countries_with_covid_cases, c("Country.Region", "Confirmed", "Deaths", "Recovered", "Active")) %>% top_n(10)
+```
+# **Countries with highest number of covid cases**
+
+```{r, top_ten_countries_with_confirmed_cases_table, echo = FALSE, warning = FALSE, comment = NA, message = FALSE}
+DT::datatable(top_ten_countries_with_covid_cases, rownames  = FALSE)
+```
+
+
+# **Confirmed Cases**
+
+
+```{r, bar_chart_top_ten_countries_with_confirmed_cases_table, echo = FALSE, warning = FALSE, comment = NA, message = FALSE, out.width="930px",out.height="500px"}
+options(scipen = 999)
+top_ten_countries_with_confirmed_cases_plot <- ggplot(top_ten_countries_with_covid_cases, aes(x = `Country.Region`, y = `Confirmed`)) + geom_bar(stat = "identity", fill = "brown1", colour = "brown1")
+ggplotly(top_ten_countries_with_confirmed_cases_plot)
+```
+
+
+# **Deaths Cases**
+
+```{r, bar_chart_top_ten_countries_with_Deaths_cases_table, echo = FALSE, warning = FALSE, comment = NA, message = FALSE, out.width="930px",out.height="500px"}
+options(scipen = 999)
+top_ten_countries_with_death_cases_plot <- ggplot(top_ten_countries_with_covid_cases, aes(x = `Country.Region`, y = `Deaths`)) + geom_bar(stat = "identity", fill = "darkolivegreen", colour = "darkolivegreen")
+ggplotly(top_ten_countries_with_death_cases_plot)
+```
+
+
+# **Recovered Cases**
+
+```{r, bar_chart_top_ten_countries_with_Recovered_cases_table, echo = FALSE, warning = FALSE, comment = NA, message = FALSE, out.width="930px",out.height="500px"}
+options(scipen = 999)
+
+top_ten_countries_with_recovered_cases_plot <- ggplot(top_ten_countries_with_covid_cases, aes(x = "", y = Recovered, fill =
+Country.Region)) + geom_bar(stat = "identity", width = 1) + coord_polar("y", start = 0) 
+top_ten_countries_with_recovered_cases_plot
+```
+
+# **Active Cases**
+
+```{r, bar_chart_top_ten_countries_with_Active_cases_table, echo = FALSE, warning = FALSE, comment = NA, message = FALSE, out.width="930px",out.height="500px"}
+options(scipen = 999)
+top_ten_countries_with_active_cases_plot <- ggplot(top_ten_countries_with_covid_cases, aes(x = `Country.Region`, y = `Active`)) + geom_segment(aes(x = Country.Region, xend = Country.Region, y = 0, yend = Active)) + geom_point( size = 5, color = "red", fill = alpha("steelblue", 0.3), alpha = 0.7, shape = 21, stroke = 2)
+ggplotly(top_ten_countries_with_active_cases_plot)
+```
+
+
+```{r, WHO_region, echo = FALSE, warning = FALSE, comment = NA, message = FALSE, out.width="930px",out.height="500px"}
+covid_data_region <- as.data.frame(unique(covid_data$WHO.Region))
+covid_data_eastern_mediterranean <- count(covid_data[covid_data$WHO.Region == "Eastern Mediterranean", ])
+covid_data_europe <- count(covid_data[covid_data$WHO.Region == "Europe", ]) 
+covid_data_africa <- count(covid_data[covid_data$WHO.Region == "Africa", ])
+covid_data_america <- count(covid_data[covid_data$WHO.Region == "Americas", ])
+covid_data_western_pacific <- count(covid_data[covid_data$WHO.Region == "Western Pacific", ])
+covid_data_south_east_asia <-  count(covid_data[covid_data$WHO.Region == "South-East Asia", ])
+```
+
+```{r, WHO_region_countries, echo = FALSE, warning = FALSE, comment = NA, message = FALSE, out.width="930px",out.height="500px"}
+countries_in_WHO_region <- rbind(covid_data_eastern_mediterranean, covid_data_europe, covid_data_africa, covid_data_america,
+                                covid_data_western_pacific, covid_data_south_east_asia )
+covid_data_countries_df <- cbind(covid_data_region, countries_in_WHO_region)
+names(covid_data_countries_df) <- c("WHO_Region", "Total Countries")
+```
+
+
+# **WHO Region**
+
+```{r, donut_chart, echo = FALSE, warning = FALSE, comment = NA, message = FALSE, out.width="1500px",out.height="500px"}
+covid_data_countries_df$fraction <- covid_data_countries_df$`Total Countries`/ sum(covid_data_countries_df$`Total Countries`)
+covid_data_countries_df$ymax <- cumsum(covid_data_countries_df$fraction)
+covid_data_countries_df$ymin <- c(0, head(covid_data_countries_df$ymax, n = -1))
+covid_data_countries_df$labelPosition <- (covid_data_countries_df$ymax + covid_data_countries_df$ymin)/2
+covid_data_countries_df$label <- paste0(covid_data_countries_df$WHO_Region, "\n value: ", covid_data_countries_df$`Total Countries`)
+
+covid_data_countries_plot <- ggplot(covid_data_countries_df, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill = WHO_Region)) + geom_rect() + coord_polar(theta="y") + xlim(c(2, 4)) + geom_label( x=3.5, aes(y=labelPosition, label=label), size=3) + scale_fill_brewer(palette=4) + xlim(c(2, 4)) + theme_void() + theme(legend.position = "none")
+plot(covid_data_countries_plot)
+```
+
+```{r stats_per_region_sum, echo = FALSE, warning = FALSE, comment = NA, message = FALSE, out.width="930px",out.height="500px"}
+total_cases <- covid_data %>% group_by(WHO.Region) %>% summarise(Active = sum(Active), Deaths = sum(Deaths), Recovered = sum(Recovered), .groups = "drop")
+total_cases <- total_cases[order(total_cases$Active, decreasing = TRUE), ]
+```
+
+```{r stats_per_region_table, echo = FALSE, warning = FALSE, comment = NA, message = FALSE, out.width="930px",out.height="500px"}
+DT::datatable(total_cases)
+```
+
+```{r stats_per_region_plot, echo = FALSE, warning = FALSE, comment = NA, message = FALSE, out.width="930px",out.height="500px"}
+stats_per_region_plot <- total_cases %>% pivot_longer(c(Active, Deaths, Recovered)) %>% ggplot(aes(x = `WHO.Region`, y= `value`, fill = `name`)) + geom_col(position = "dodge")
+ggplotly(stats_per_region_plot)
+```
+
+```{r daywise_data, echo = FALSE, warning = FALSE, comment = NA, message = FALSE, out.width="930px",out.height="500px"}
+daywise_covid_data <- dplyr::select(daywise_covid_data, c("Date", "Deaths", "Recovered", "Active"))
+daywise_covid_data_date <- as.Date(daywise_covid_data$Date)
+daywise_covid_data_date <- as.data.frame(months(daywise_covid_data_date))
+daywise_covid_data_with_new_date <- as.data.frame(cbind(daywise_covid_data, daywise_covid_data_date))
+colnames(daywise_covid_data_with_new_date)[5] <- c("new_date")
+daywise_covid_data_with_new_date <- dplyr::select(daywise_covid_data_with_new_date, -c("Date"))
+daywise_covid_df <- daywise_covid_data_with_new_date %>% group_by(new_date) %>% summarise_all(sum)
+```
+
+
+# **Covid Cases Stats of 2020**
+
+```{r daywise_data_plot, echo = FALSE, warning = FALSE, comment = NA, message = FALSE, out.width="930px",out.height="500px"}
+daywise_covid_data_df <- daywise_covid_df %>% pivot_longer(c(Active, Deaths, Recovered)) 
+daywise_covid_data_plot <- ggplot(data = daywise_covid_data_df, aes(x = `new_date`, y = `value`, fill = `name`)) + geom_col(position = "dodge") + ggtitle("Covid Cases Stats of 2020") + theme(axis.text.x = element_text(angle = -45, vjust = .5))
+ggplotly(daywise_covid_data_plot)
+```
+ 
+ 
