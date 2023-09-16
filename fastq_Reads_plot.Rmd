@@ -1,0 +1,50 @@
+---
+title: "Untitled"
+author: "Commander NGS"
+date: '2023-09-14'
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+library(dplyr)
+
+```
+
+```{r}
+data_loaded <- readxl::read_excel("/home/ngsa4/Documents/SO_11933_Q7_and_Q16_Read_Stats.xlsx")
+
+data_restructure <- dplyr::select(data_loaded, c(1,2,3,4,5,6,7))
+new_data <- data_restructure[c(1,3), ]
+data_convert <- t(new_data)
+data_convert <- as.data.frame(data_convert)
+names(data_convert) <- data_convert[1,]
+data_convert <- data_convert[-1, ]
+data_convert <- rownames_to_column(data_convert, "Sample")
+data_convert$Name <- "% of bases > Q7"
+names(data_convert) <- c("sample", "number_of_bases", "percent_bases", "name")
+as.data.frame(data_convert)
+
+new_data_convert <- data_restructure[c(1,2,4), ]
+new_data_convert <- t(new_data_convert)
+new_data_convert <- as.data.frame(new_data_convert)
+names(new_data_convert) <- new_data_convert[1,]
+new_data_convert <- new_data_convert[-1, ]
+new_data_convert <- rownames_to_column(new_data_convert, "Sample")
+new_data_convert$Name <- "% of bases > Q16"
+new_data_convert <- new_data_convert[ , -3 ]
+names(new_data_convert) <- c("sample", "number_of_bases", "percent_bases", "name")
+as.data.frame(new_data_convert)
+
+req_df <- rbind(data_convert, new_data_convert)
+req_df$percent_bases <- as.numeric(req_df$percent_bases)
+req_df$number_of_bases <- as.numeric(req_df$number_of_bases)
+```
+
+```{r}
+options(scipen=999)
+plot_bases <- ggplot(data = req_df, aes(x = `percent_bases`, y = `number_of_bases`, fill = name)) + geom_point() + geom_line()
+ggplotly(plot_bases)
+```
