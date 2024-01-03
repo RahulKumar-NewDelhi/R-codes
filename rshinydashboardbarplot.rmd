@@ -1,0 +1,45 @@
+library(flexdashboard)
+library(shiny)
+library(dplyr)
+
+readfile <- read.csv("../pipeline_trace.txt", sep = "\t")
+df <- readfile
+
+ui <- fluidPage(
+  titlePanel("Real-time Progress Bar Plot"),
+  mainPanel(
+    plotOutput("progressPlot")
+  )
+)
+
+server <- function(input, output, session) {
+  total_tasks <- nrow(df)
+  completed_tasks <- sum(df$status == "COMPLETED")
+  
+  autoInvalidate <- reactiveTimer(1000, session)
+  
+  observe({
+    autoInvalidate()
+    completed_tasks <<- sum(df$status == "COMPLETED")
+  })
+
+  output$progressPlot <- renderPlot({
+    progress_value <- completed_tasks / total_tasks
+    
+    barplot(c(progress_value, 1 - progress_value), 
+            col = c("lightblue", "lightgray"),
+            names.arg = c("Progress", "Remaining"),
+            ylim = c(0, 1),
+            width = 1,
+            space = 0.1,
+            main = "Real-time Progress Bar Plot",
+            ylab = "Percentage",
+            xlab = "Task",
+            border = NA)
+  })
+}
+
+shinyApp(ui = ui, server = server)
+
+
+shiny_args = list(host=\"0.0.0.0\", port = strtoi($port)))

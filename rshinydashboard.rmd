@@ -1,0 +1,67 @@
+file <- "../pipeline_trace.txt"
+
+if (file.exists(file)) {
+
+data <- read.table(file, header = TRUE, sep = "\t")
+
+convert_to_seconds <- function(milliseconds){
+  convert_to_seconds <- as.numeric(sub("ms", "", milliseconds))/1000
+  return(convert_to_seconds)
+}
+
+remove_seconds <- function(seconds){
+  remove_seconds <- as.numeric(sub("s", "", seconds))
+  return(remove_seconds)
+}
+
+
+data$milli_to_seconds <- sapply(data$realtime, convert_to_seconds)
+data$seconds <- sapply(data$realtime, remove_seconds)
+
+data$timetaken <- coalesce(data$milli_to_seconds, data$seconds)
+
+data$rounded_time <- round(data$timetaken, digits = 1)
+
+data$process_name <- sub("^.*:\\s*", "", data$process)
+
+write.table(data, paste0(getwd(), "/", "realtime.txt"), row.names = FALSE)
+
+} else {
+    print("File does not exist. Cannot run the code now.\n")
+}
+
+ui <- fluidPage(
+    titlePanel("Realtime dashboard"),
+    plotlyOutput("realtime_plot")
+)
+
+server <- function(input, output, session){
+    file_exists <- reactive({
+        file_path <- "realtime.txt"
+        file.exists(file_path) && file.info(file_path)$size > 0
+    })
+
+output$realtime_plot <- renderPlotly({
+    if(file_exists()){
+        data <- read.table("realtime.txt", header = TRUE)
+        plot_ly(data, x = ~rounded_time, y = ~process_name, type = "bar") %>%
+            layout(title = "Realtime updating dashboard", xaxis = list(title = "Rounded Time"), yaxis = list(title = "Process Name"))
+    } else {
+    plot_ly() %>%
+        layout(title = "No data available", xaxis = list(title = ""), yaxis = list(title = ""))
+    }
+})
+
+observe({
+    invalidateLater(1000, session)
+    data <- read.table("realtime.txt", header = TRUE)
+    output$realtime_plot <- renderPlotly({
+        plot_ly(data, x = ~rounded_time, y = ~process_name, type = "bar") %>%
+        layout(title = "Real-time Updating Dashboard", xaxis = list(title = "Rounded Time"), yaxis = list(title = "Process Name"))
+    })
+})
+}
+
+
+shinyApp(ui, server)
+
