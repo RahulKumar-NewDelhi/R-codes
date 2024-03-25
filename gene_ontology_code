@@ -1,0 +1,50 @@
+
+get_functional_ontology <- function(){
+
+annotation_files <- list.files(".", pattern = ".annotation*")
+files <- str_remove(basename(annotation_files), ".annotation.tsv")
+
+annotation_func <- function(files){
+     annotation_files_read <- as.data.frame(read.delim(files, header = TRUE, sep = "\t"))
+     annotation_files_read <- gsub(",", ";", annotation_files_read)
+     GO_functional <- str_extract_all(annotation_files_read, "F:(.*?);")
+     
+     filter_function <- function(x) length(x) > 0
+     filtered_function <- Filter(filter_function, GO_functional)
+     
+     functional_df <- as.data.frame(filtered_function)
+     functional_df$Sample_Name <-files
+     names(functional_df)[1] <- c("functional_ontology")
+     
+     unique_functional_ontology <- functional_df %>% distinct()
+     
+     count_repeated_GO <- functional_df %>% dplyr::count(functional_df$functional_ontology) %>% filter(unique_functional_ontology$functional_ontology %in% functional_df$functional_ontology,)
+     names(count_repeated_GO) <- c("functional_ontology", "count")
+     
+     
+     GO_df <- count_repeated_GO %>% separate(`functional_ontology`, c("V1","V2"), ":")
+     names(GO_df) <- c("GO", "Gene_Ontology", "Count")
+     GO_df$SampleName <- files
+     GO_df <- as.data.frame(GO_df)
+     
+     GO_df$Count <- as.numeric(GO_df$Count)
+     
+     functional_ontology <- GO_df[order(GO_df$Count, decreasing = TRUE), ]
+     functional_ontology <- head(functional_ontology, 10)
+     
+     functional_ontology_df <- functional_ontology %>% select(SampleName, Gene_Ontology, Count)
+     
+     return(functional_ontology_df)
+    
+     
+}
+annotation_df <- map(annotation_files, annotation_func)
+annotation_df <- dplyr::bind_rows(lapply(annotation_df, bind_rows))
+
+gene_ontology_functional_plot <- ggplot(data =  annotation_df, aes(x = `Gene_Ontology`, y = `Count`, fill = SampleName)) + geom_bar(stat = "identity", position = "dodge") + xlab("Gene Ontology(Molecular function)")+ ylab("Count") + theme(axis.text.x = element_text(angle = -90, vjust = 1, hjust = 0))
+plot(gene_ontology_functional_plot)
+
+}
+
+tryCatch(get_functional_ontology(), error = function(c) { print("file empty")})
+
